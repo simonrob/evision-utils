@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         eVision fixer
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      0.1
+// @version      0.2
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
 // @match        https://evision.swan.ac.uk/*
+// @match        https://evision.swansea.ac.uk/*
 // @grant        none
 // ==/UserScript==
 /* global $ */
