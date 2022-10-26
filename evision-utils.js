@@ -14,7 +14,8 @@
     'use strict';
     window.setTimeout(function(){
         // get all tables by: $.fn.dataTable.tables()
-        $('#myrs_list').dataTable().api().page.len( -1 ).draw(); // the list of students
-        $('#DataTables_Table_0').dataTable().api().page.len(-1).draw() // the list of meetings
+        $('#myrs_list').dataTable().api().page.len( -1 ).draw(); // show all rows in the list of students
+        $('#myrs_list').dataTable().fnSort([[2,'asc']]); // sort the students alphabetically by name
+        $('#DataTables_Table_0').dataTable().api().page.len(-1).draw() // show all rows in the list of meetings
     }, 250);
 })();
