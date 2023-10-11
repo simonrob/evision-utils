@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         eVision fixer
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      0.5
+// @version      2023-10-11
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
 // @match        evision.swan.ac.uk/*
@@ -35,7 +35,7 @@
         console.log('eVision fixer intercepted alert:', message);
     };
 
-    let filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
+    const filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
     const gmc = new GM_config({
         'id': 'evision-fixer',
         'title': 'eVision Fixer Settings',
@@ -69,8 +69,8 @@
 
         // see guide at https://datatables.net/blog/2014-12-18
         $.fn.dataTable.moment = function (format, locale, reverseEmpties) {
-            var types = $.fn.dataTable.ext.type;
             // add type detection
+            const types = $.fn.dataTable.ext.type;
             types.detect.unshift( function (d) {
                 if (d === '' || d === null) {
                     return 'moment-' + format; // null and empty values are acceptable
@@ -102,7 +102,7 @@
         });
 
         // move the back button to a consistent position
-        let backStyle = {position:'absolute', right:0, top:0, marginRight:'105px', marginTop: '8px', width: '70px'};
+        const backStyle = {position:'absolute', right:0, top:0, marginRight:'105px', marginTop: '8px', width: '70px'};
         $('input[name="NEXT.DUMMY.MENSYS.1"]').filter(function() {
             if (this.value.toLowerCase() === 'back') {
                 $(this).parent().css(backStyle);
@@ -111,9 +111,10 @@
         });
 
         // hide the sidebar by default
-        $('#sv-sidebar').addClass('sv-collapsed');
-        $('#sv-sidebar-collapse').addClass('sv-collapsed');
-        $('#sv-sidebar-menubar').addClass('sv-collapsed-menu');
+        const visibleSidebar = $('#sv-sidebar').not('.sv-collapsed');
+        if (visibleSidebar.length >= 1) {
+            $('#sv-sidebar-collapse').click();
+        }
 
         // hide the slow and pointless "Meetings and Events" option
         $('.sv-tiled-cop-e').hide()
@@ -132,22 +133,22 @@
             $('.buttons-excel').parent().find('button').first().hide();
 
             // get all tables by: $.fn.dataTable.tables()
-            // the student list default (i.e., page source) is var datatableOptions = { "pageLength": 5, [...] }; // wtf
-            let studentTable = $('#myrs_list');
+            // the student list default (i.e., page source) is datatableOptions = { "pageLength": 5, [...] }; // wtf
+            const studentTable = $('#myrs_list');
             if (studentTable.length > 0){
                 console.log('eVision fixer: modifying student table');
-                let studentTableAPI = studentTable.dataTable().api();
+                const studentTableAPI = studentTable.dataTable().api();
                 studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
                 $('#myrs_list').dataTable().fnSort([[3,'desc'],[0,'asc'],[2,'asc']]); // sort the students by activity, supervision type, then alphabetically by name
                 $('td[data-ttip="Name"]').each(function() { // trim names
-                    var newName = $(this).text().split(' ');
+                    const newName = $(this).text().split(' ');
                     $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
                 });
 
                 // filter out ignored students
-                let removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-                    let cellValue = studentTableAPI.cell(rowIdx, 1).data();
-                    let valueFiltered = filteredStudents.includes(cellValue);
+                const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                    const cellValue = studentTableAPI.cell(rowIdx, 1).data();
+                    const valueFiltered = filteredStudents.includes(cellValue);
                     if (valueFiltered) {
                         console.log('eVision fixer: filtering student ' + cellValue + ': '
                                     + studentTableAPI.cell(rowIdx, 2).data());
@@ -157,9 +158,9 @@
                 studentTableAPI.rows(removed).remove().draw();
 
                 // de-emphasise secondary-supervised students
-                let deemphasised = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-                    let cellValue = studentTableAPI.cell(rowIdx, 0).data();
-                    let valueFiltered = cellValue.toLowerCase().includes('secondary');
+                const deemphasised = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                    const cellValue = studentTableAPI.cell(rowIdx, 0).data();
+                    const valueFiltered = cellValue.toLowerCase().includes('secondary');
                     if (valueFiltered) {
                         console.log('eVision fixer: de-emphasising secondary-supervised student: ' +
                                     studentTableAPI.cell(rowIdx, 2).data());
@@ -169,9 +170,8 @@
                 studentTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
             }
 
-            let generalMeetingsTable = $('#supTab');
+            const generalMeetingsTable = $('#supTab');
             if (generalMeetingsTable.length > 0) {
-                // scroll down until the green buttons start to find current meetings
                 console.log('eVision fixer: modifying generic meetings table');
                 generalMeetingsTable.dataTable().api().page.len(-1).draw(); // show all rows in "Meetings and Events"
                 generalMeetingsTable.dataTable().fnSort([[0,'asc'],[3,'asc']]); // sort by supervision type then date
@@ -185,16 +185,16 @@
                 }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
             }
 
-            let meetingsTable = $('#DataTables_Table_0');
+            const meetingsTable = $('#DataTables_Table_0');
             if (meetingsTable.length > 0) {
                 console.log('eVision fixer: modifying individual meetings table');
-                let meetingsTableAPI = meetingsTable.dataTable().api();
+                const meetingsTableAPI = meetingsTable.dataTable().api();
                 meetingsTableAPI.page.len(-1).draw() // show all meeting list rows (an individual student's details)
 
                 // de-emphasise past meetings
-                let deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
-                    let cellValue = meetingsTableAPI.cell(rowIdx, 6).data();
-                    let valueFiltered = cellValue.toLowerCase().includes('complete');
+                const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
+                    const cellValue = meetingsTableAPI.cell(rowIdx, 6).data();
+                    const valueFiltered = cellValue.toLowerCase().includes('complete');
                     if (valueFiltered) {
                         console.log('eVision fixer: de-emphasising past meeting: ' +
                                     meetingsTableAPI.cell(rowIdx, 2).data());
@@ -202,6 +202,14 @@
                     return valueFiltered;
                 });
                 meetingsTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
+                const lastFinishedMeeting = $('.deemphasise:last');
+                if (lastFinishedMeeting.length >= 0) {
+                    lastFinishedMeeting[0].scrollIntoView({
+                        behavior: 'smooth',
+                        inline: 'center',
+                        block: 'center'
+                    });
+                }
 
                 setTimeout(function() {
                     $('a.sv-btn').each(function() {
