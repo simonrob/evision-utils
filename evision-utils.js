@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         eVision fixer
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-10-11
+// @version      2023-10-12
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
 // @match        evision.swan.ac.uk/*
@@ -19,6 +19,9 @@
     'use strict';
 
     GM_addStyle(`
+        .emphasise {
+            font-weight: bold;
+        }
         .deemphasise {
             color: #ccc;
         }
@@ -101,6 +104,10 @@
             });
         });
 
+        // hide the slow and pointless "Meetings and Events" option and the personnel details table
+        $('div.sv-tiled-col:contains("Meetings and Events")').hide();
+        $('.sv-list-group-item').has('th:contains("Personnel Code")').hide();
+
         // move the back button to a consistent position
         const backStyle = {position:'absolute', right:0, top:0, marginRight:'105px', marginTop: '8px', width: '70px'};
         $('input[name="NEXT.DUMMY.MENSYS.1"]').filter(function() {
@@ -116,14 +123,14 @@
             $('#sv-sidebar-collapse').click();
         }
 
-        // hide the slow and pointless "Meetings and Events" option
-        $('.sv-tiled-cop-e').hide()
-
         window.setTimeout(function(){
             // redirect from the pointless "Home" page with no actual content to the actual homepage
             if ($('h2:contains("Welcome Message")').length > 0) {
                 $('a[aria-label="Research Management"]')[0].click();
             }
+
+            // hide the viva dates and "important notifications" panels
+            $('div.sv-list-group:contains("Viva Examination Date")').hide();
 
             // hide loading dialogs - they seem to do nothing
             $('.ui-widget-overlay').hide();
@@ -139,15 +146,19 @@
                 console.log('eVision fixer: modifying student table');
                 const studentTableAPI = studentTable.dataTable().api();
                 studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
-                $('#myrs_list').dataTable().fnSort([[3,'desc'],[0,'asc'],[2,'asc']]); // sort the students by activity, supervision type, then alphabetically by name
                 $('td[data-ttip="Name"]').each(function() { // trim names
                     const newName = $(this).text().split(' ');
                     $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
                 });
 
-                // filter out ignored students
+                // filter out ignored students; add intranet links
                 const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
                     const cellValue = studentTableAPI.cell(rowIdx, 1).data();
+                    const studentLink = 'https://intranet.swan.ac.uk/students/fra_stu_detail.asp?id=' +
+                          encodeURIComponent(cellValue);
+                    studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
+                                                         cellValue + '</a>');
+
                     const valueFiltered = filteredStudents.includes(cellValue);
                     if (valueFiltered) {
                         console.log('eVision fixer: filtering student ' + cellValue + ': '
@@ -168,6 +179,27 @@
                     return valueFiltered;
                 });
                 studentTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
+
+                // highlight PhD students
+                const isPhD = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                    const startCellDate = moment(studentTableAPI.cell(rowIdx, 4).data(), 'DD/MM/YYYY');
+                    const endCellDate = moment(studentTableAPI.cell(rowIdx, 5).data(), 'DD/MM/YYYY');
+                    const valueFiltered = endCellDate.diff(startCellDate, 'months') >= 24;
+                    if (valueFiltered) {
+                        const statusCell = studentTableAPI.cell(rowIdx, 3);
+                        statusCell.data(statusCell.data() + ' (PhD)');
+                        console.log('eVision fixer: emphasising PhD student: ' +
+                                    studentTableAPI.cell(rowIdx, 2).data());
+                    }
+                    return valueFiltered && !studentTableAPI.cell(rowIdx, 0).data().toLowerCase().includes('secondary');
+                });
+                studentTableAPI.rows(isPhD).nodes().to$().addClass('emphasise');
+
+                // sort the students by status, supervision type, then end date
+                // (separately because combined sorting gives a different result)
+                $('#myrs_list').dataTable().fnSort([[5,'asc']]);
+                $('#myrs_list').dataTable().fnSort([[3,'desc']]);
+                $('#myrs_list').dataTable().fnSort([[0,'asc']]);
             }
 
             const generalMeetingsTable = $('#supTab');
@@ -189,7 +221,7 @@
             if (meetingsTable.length > 0) {
                 console.log('eVision fixer: modifying individual meetings table');
                 const meetingsTableAPI = meetingsTable.dataTable().api();
-                meetingsTableAPI.page.len(-1).draw() // show all meeting list rows (an individual student's details)
+                meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
 
                 // de-emphasise past meetings
                 const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
