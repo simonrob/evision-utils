@@ -1,7 +1,9 @@
 // ==UserScript==
-// @name         eVision fixer
+// @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
 // @version      2023-10-12
+// @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
+// @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
 // @match        evision.swan.ac.uk/*
@@ -15,6 +17,7 @@
 // @run-at       document-start
 // ==/UserScript==
 /* global $, moment, GM_config */
+
 (function() {
     'use strict';
 
@@ -39,15 +42,21 @@
     };
 
     const filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
+    let profileLinkPrefix = ''; // basic for now, but could be extended if needed
     const gmc = new GM_config({
         'id': 'evision-fixer',
         'title': 'eVision Fixer Settings',
-        'css': 'textarea { width: 100%; height: 15em; }',
+        'css': 'textarea { width: 100%; height: 15em; margin-bottom: 2em; } input { width: 100%; }',
         'fields': {
             'ignoredStudents': {
                 'label': 'Ignored student numbers – suggested one per line (comments allowed)',
                 'type': 'textarea',
                 'default': '123456/1 // example ignored student number'
+            },
+            'profileLinkPrefix': {
+                'label': 'The URL to use when linking to student profiles. Student numbers will be appended to this value',
+                'type': 'text',
+                'default': 'https://intranet.swan.ac.uk/students/fra_stu_detail.asp?id='
             }
         },
         'events': {
@@ -57,6 +66,7 @@
                 this.get('ignoredStudents').replace(/(\d+\/\d{1})/g, function (string, match) {
                     filteredStudents.push(match);
                 });
+                profileLinkPrefix = this.get('profileLinkPrefix');
             }
         }
     });
@@ -93,7 +103,7 @@
         // show the hidden "return to home" menu button (and rename it)
         $('li[role="menuitem"]').addClass('sv-active').children('a').text('Home');
 
-        // show the hidden meetings and events panel
+        // show the hidden meetings and events panel (note: hidden later for now)
         $(function() {
             $('*').contents().filter(function() {
                 return this.nodeType == 8; // get all comments
@@ -154,8 +164,7 @@
                 // filter out ignored students; add intranet links
                 const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
                     const cellValue = studentTableAPI.cell(rowIdx, 1).data();
-                    const studentLink = 'https://intranet.swan.ac.uk/students/fra_stu_detail.asp?id=' +
-                          encodeURIComponent(cellValue);
+                    const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
                     studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
                                                          cellValue + '</a>');
 
