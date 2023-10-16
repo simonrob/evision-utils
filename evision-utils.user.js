@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-10-12
+// @version      2023-10-13
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -157,7 +157,7 @@
                 const studentTableAPI = studentTable.dataTable().api();
                 studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
                 $('td[data-ttip="Name"]').each(function() { // trim names
-                    const newName = $(this).text().split(' ');
+                    const newName = $(this).text().trim().split(' ');
                     $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
                 });
 
@@ -166,7 +166,7 @@
                     const cellValue = studentTableAPI.cell(rowIdx, 1).data();
                     const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
                     studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
-                                                         cellValue + '</a>');
+                                                         cellValue.trim().split('/')[0] + '</a>');
 
                     const valueFiltered = filteredStudents.includes(cellValue);
                     if (valueFiltered) {
@@ -232,6 +232,11 @@
                 const meetingsTableAPI = meetingsTable.dataTable().api();
                 meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
 
+                meetingsTable.find('td:nth-child(2)').each(function() {
+                    const newName = $(this).text().trim().split(' ');
+                    $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
+                });
+
                 // de-emphasise past meetings
                 const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
                     const cellValue = meetingsTableAPI.cell(rowIdx, 6).data();
@@ -264,6 +269,10 @@
             // show meeting records by default
             $('div[data-altid="rdeDetails_1"]').show();
             $('div[data-altid="rdeDetails_2"]').show();
+
+            // be more clear about what "New" actually means
+            $('.sv-label-success:contains(" New")').html('<span class="glyphicon glyphicon-arrow-right"></span> Not started');
+            $('.sv-label-warning:contains(" Pending")').html('<span class="glyphicon glyphicon-pencil"></span> In progress');
 
             // expand the form to the full page width
             $('div.sv-col-sm-4').removeClass('sv-col-sm-4').addClass('sv-col-sm-9');
