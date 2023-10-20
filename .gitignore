@@ -1,0 +1,5 @@
+# Custom for this repository
+versions
+temp
+.idea
+*.iml

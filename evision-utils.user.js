@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-10-13
+// @version      2023-10-20
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -18,7 +18,7 @@
 // ==/UserScript==
 /* global $, moment, GM_config */
 
-(function() {
+(function () {
     'use strict';
 
     GM_addStyle(`
@@ -34,10 +34,14 @@
         .deemphasise span.sv-label {
             background-color: rgb(119, 119, 119, 0.1);
         }
+        img[src$="working.gif"] {
+            /* hide the loading image that moves fields just when you're about to click them */
+            display: none !important;
+        }
     `);
 
     const alertScope = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
-    alertScope.alert = function(message) {
+    alertScope.alert = function (message) {
         console.log('eVision fixer intercepted alert:', message);
     };
 
@@ -60,7 +64,7 @@
             }
         },
         'events': {
-            'init': function() {
+            'init': function () {
                 // note: ideally this would link in with the modifications to ensure,
                 // load has completed but eVision is so slow that this is not needed
                 this.get('ignoredStudents').replace(/(\d+\/\d{1})/g, function (string, match) {
@@ -71,20 +75,22 @@
         }
     });
 
-    addEventListener('DOMContentLoaded', function(){
+    addEventListener('DOMContentLoaded', function () {
         console.log('eVision fixer - setting up modifications');
 
         // add our own settings button
         $('<button id="sv-header-fixer-settings" type="button" class="sv-navbar-options" ' +
-          'title="eVision fixer settings" aria-label="eVision fixer settings"><span ' +
-          'class="glyphicon glyphicon-cog"></span></button>').insertBefore('#sv-header-profile');
-        $('#sv-header-fixer-settings').click(function() { gmc.open(); });
+            'title="eVision fixer settings" aria-label="eVision fixer settings"><span ' +
+            'class="glyphicon glyphicon-cog"></span></button>').insertBefore('#sv-header-profile');
+        $('#sv-header-fixer-settings').click(function () {
+            gmc.open();
+        });
 
         // see guide at https://datatables.net/blog/2014-12-18
         $.fn.dataTable.moment = function (format, locale, reverseEmpties) {
             // add type detection
             const types = $.fn.dataTable.ext.type;
-            types.detect.unshift( function (d) {
+            types.detect.unshift(function (d) {
                 if (d === '' || d === null) {
                     return 'moment-' + format; // null and empty values are acceptable
                 }
@@ -104,12 +110,12 @@
         $('li[role="menuitem"]').addClass('sv-active').children('a').text('Home');
 
         // show the hidden meetings and events panel (note: hidden later for now)
-        $(function() {
-            $('*').contents().filter(function() {
-                return this.nodeType == 8; // get all comments
-            }).each(function(i, e){
+        $(function () {
+            $('*').contents().filter(function () {
+                return this.nodeType === 8; // get all comments
+            }).each(function (i, e) {
                 if (e.nodeValue.includes('Next Meeting or Event')) {
-                    $(e).replaceWith(e.nodeValue.replace('///-','').replace('-///',''));
+                    $(e).replaceWith(e.nodeValue.replace('///-', '').replace('-///', ''));
                 }
             });
         });
@@ -119,8 +125,15 @@
         $('.sv-list-group-item').has('th:contains("Personnel Code")').hide();
 
         // move the back button to a consistent position
-        const backStyle = {position:'absolute', right:0, top:0, marginRight:'105px', marginTop: '8px', width: '70px'};
-        $('input[name="NEXT.DUMMY.MENSYS.1"]').filter(function() {
+        const backStyle = {
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            marginRight: '105px',
+            marginTop: '8px',
+            width: '70px'
+        };
+        $('input[name="NEXT.DUMMY.MENSYS.1"]').filter(function () {
             if (this.value.toLowerCase() === 'back') {
                 $(this).parent().css(backStyle);
                 $(this).css(backStyle);
@@ -133,7 +146,8 @@
             $('#sv-sidebar-collapse').click();
         }
 
-        window.setTimeout(function(){
+        // TODO: make this wait until elements are ready rather than just a timeout (same with other setTimeout uses)
+        window.setTimeout(function () {
             // redirect from the pointless "Home" page with no actual content to the actual homepage
             if ($('h2:contains("Welcome Message")').length > 0) {
                 $('a[aria-label="Research Management"]')[0].click();
@@ -152,13 +166,19 @@
             // get all tables by: $.fn.dataTable.tables()
             // the student list default (i.e., page source) is datatableOptions = { "pageLength": 5, [...] }; // wtf
             const studentTable = $('#myrs_list');
-            if (studentTable.length > 0){
+            if (studentTable.length > 0) {
                 console.log('eVision fixer: modifying student table');
                 const studentTableAPI = studentTable.dataTable().api();
                 studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
-                $('td[data-ttip="Name"]').each(function() { // trim names
+                $('td[data-ttip="Name"]').each(function () { // trim names
                     const newName = $(this).text().trim().split(' ');
                     $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
+                });
+                $('td[data-ttip="Student Details"]').each(function () { // more obvious link text
+                    $(this).find('a').text('Profile');
+                });
+                $('td[data-ttip="Student Forms"]').each(function () { // more obvious link text
+                    $(this).find('a').text('Edit / Submit Forms');
                 });
 
                 // filter out ignored students; add intranet links
@@ -166,12 +186,12 @@
                     const cellValue = studentTableAPI.cell(rowIdx, 1).data();
                     const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
                     studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
-                                                         cellValue.trim().split('/')[0] + '</a>');
+                        cellValue.trim().split('/')[0] + '</a>');
 
                     const valueFiltered = filteredStudents.includes(cellValue);
                     if (valueFiltered) {
                         console.log('eVision fixer: filtering student ' + cellValue + ': '
-                                    + studentTableAPI.cell(rowIdx, 2).data());
+                            + studentTableAPI.cell(rowIdx, 2).data());
                     }
                     return valueFiltered;
                 });
@@ -183,7 +203,7 @@
                     const valueFiltered = cellValue.toLowerCase().includes('secondary');
                     if (valueFiltered) {
                         console.log('eVision fixer: de-emphasising secondary-supervised student: ' +
-                                    studentTableAPI.cell(rowIdx, 2).data());
+                            studentTableAPI.cell(rowIdx, 2).data());
                     }
                     return valueFiltered;
                 });
@@ -198,7 +218,7 @@
                         const statusCell = studentTableAPI.cell(rowIdx, 3);
                         statusCell.data(statusCell.data() + ' (PhD)');
                         console.log('eVision fixer: emphasising PhD student: ' +
-                                    studentTableAPI.cell(rowIdx, 2).data());
+                            studentTableAPI.cell(rowIdx, 2).data());
                     }
                     return valueFiltered && !studentTableAPI.cell(rowIdx, 0).data().toLowerCase().includes('secondary');
                 });
@@ -206,19 +226,19 @@
 
                 // sort the students by status, supervision type, then end date
                 // (separately because combined sorting gives a different result)
-                $('#myrs_list').dataTable().fnSort([[5,'asc']]);
-                $('#myrs_list').dataTable().fnSort([[3,'desc']]);
-                $('#myrs_list').dataTable().fnSort([[0,'asc']]);
+                studentTable.dataTable().fnSort([[5, 'asc']]);
+                studentTable.dataTable().fnSort([[3, 'desc']]);
+                studentTable.dataTable().fnSort([[0, 'asc']]);
             }
 
             const generalMeetingsTable = $('#supTab');
             if (generalMeetingsTable.length > 0) {
                 console.log('eVision fixer: modifying generic meetings table');
                 generalMeetingsTable.dataTable().api().page.len(-1).draw(); // show all rows in "Meetings and Events"
-                generalMeetingsTable.dataTable().fnSort([[0,'asc'],[3,'asc']]); // sort by supervision type then date
+                generalMeetingsTable.dataTable().fnSort([[0, 'asc'], [3, 'asc']]); // sort by supervision type then date
 
-                setTimeout(function() {
-                    $('a.sv-btn').each(function() {
+                setTimeout(function () {
+                    $('a.sv-btn').each(function () {
                         // open tasks in new window so the "letters" page doesn't need reloading all the time
                         // TODO: be aware that eVision is only capable of editing one form at once...
                         $(this).attr('target', '_blank');
@@ -232,7 +252,7 @@
                 const meetingsTableAPI = meetingsTable.dataTable().api();
                 meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
 
-                meetingsTable.find('td:nth-child(2)').each(function() {
+                meetingsTable.find('td:nth-child(2)').each(function () {
                     const newName = $(this).text().trim().split(' ');
                     $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
                 });
@@ -243,7 +263,7 @@
                     const valueFiltered = cellValue.toLowerCase().includes('complete');
                     if (valueFiltered) {
                         console.log('eVision fixer: de-emphasising past meeting: ' +
-                                    meetingsTableAPI.cell(rowIdx, 2).data());
+                            meetingsTableAPI.cell(rowIdx, 2).data());
                     }
                     return valueFiltered;
                 });
@@ -257,8 +277,8 @@
                     });
                 }
 
-                setTimeout(function() {
-                    $('a.sv-btn').each(function() {
+                setTimeout(function () {
+                    $('a.sv-btn').each(function () {
                         // open tasks in new window so the "letters" page doesn't need reloading all the time
                         // TODO: be aware that eVision is only capable of editing one form at once...
                         $(this).attr('target', '_blank');
