@@ -5,6 +5,7 @@ A userscript to improve e:Vision usability:
 - Allow sorting tables by date order (or any other column)
 - Highlight entries more clearly by type and relationship
 - Allow hiding specific tutees and unnecessary interface elements
+- Add an option to automatically fill in the more tedious parts of the engagement form
 - Unhide the home and back buttons to avoid having to log in repeatedly
 - Skip the empty homepage and go straight to the research management tab
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-10-20
+// @version      2023-10-23
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -47,6 +47,7 @@
 
     const filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
     let profileLinkPrefix = ''; // basic for now, but could be extended if needed
+    let defaultSupervisionComment = '';
     const gmc = new GM_config({
         'id': 'evision-fixer',
         'title': 'eVision Fixer Settings',
@@ -61,16 +62,22 @@
                 'label': 'The URL to use when linking to student profiles. Student numbers will be appended to this value',
                 'type': 'text',
                 'default': 'https://intranet.swan.ac.uk/students/fra_stu_detail.asp?id='
+            },
+            'defaultSupervisionComment': {
+                'label': 'Text to insert at the start of the additional meeting box for monthly engagement checks',
+                'type': 'text',
+                'default': ''
             }
         },
         'events': {
             'init': function () {
                 // note: ideally this would link in with the modifications to ensure,
                 // load has completed but eVision is so slow that this is not needed
-                this.get('ignoredStudents').replace(/(\d+\/\d{1})/g, function (string, match) {
+                this.get('ignoredStudents').replace(/(\d+\/\d)/g, function (string, match) {
                     filteredStudents.push(match);
                 });
                 profileLinkPrefix = this.get('profileLinkPrefix');
+                defaultSupervisionComment = this.get('defaultSupervisionComment');
             }
         }
     });
@@ -284,6 +291,36 @@
                         $(this).attr('target', '_blank');
                     });
                 }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
+            }
+
+            // make date selectors a little more usable
+            const dateSelector = $('label:contains("Date of engagement?"):not(:has(span))').parent();
+            if (dateSelector.length > 0) {
+                dateSelector.find('.sv-col-md-4').addClass('sv-col-md-3').removeClass('sv-col-md-4');
+                $('<div class="sv-col-md-3"><button id="addDateTodayButton" class="sv-btn" style="margin-top:22px">' +
+                    'Auto: today, in-person, UK</button></div>').appendTo(dateSelector.find('.sv-row'));
+                for (let i = 0; i < 12; i++) {
+                    const date = new Date(2000, i, 1);
+                    const month = date.toLocaleString('default', {month: 'long'});
+                    const zeroPadded = ('0' + (i + 1)).slice(-2);
+                    dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"] option[value="' + zeroPadded + '"]').text(month);
+                }
+                $('#addDateTodayButton').click(function (ev) {
+                    ev.preventDefault();
+
+                    $('select[name="ANSWER.TTQ.MENSYS.5"]').val('1').change(); // face-to-face
+                    $('input[id="ANSWER.TTQ.MENSYS.7.2"]').prop('checked', true).change(); // off-campus, UK
+
+                    let dateToday = new Date();
+                    dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]').val(('0' + dateToday.getUTCDate()).slice(-2));
+                    dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"]').val(('0' + (dateToday.getUTCMonth() + 1)).slice(-2));
+                    dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]').val(dateToday.getUTCFullYear()).change(); // validation
+
+                    const meetingText = $('textarea[id="ANSWER.TTQ.MENSYS.8."]');
+                    if (!meetingText.val()) {
+                        meetingText.val(defaultSupervisionComment);
+                    }
+                });
             }
 
             // show meeting records by default
