@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-10-23
+// @version      2023-11-01
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -56,7 +56,7 @@
             'ignoredStudents': {
                 'label': 'Ignored student numbers – suggested one per line (comments allowed)',
                 'type': 'textarea',
-                'default': '123456/1 // example ignored student number'
+                'default': '123456 // example ignored student number'
             },
             'profileLinkPrefix': {
                 'label': 'The URL to use when linking to student profiles. Student numbers will be appended to this value',
@@ -73,11 +73,42 @@
             'init': function () {
                 // note: ideally this would link in with the modifications to ensure,
                 // load has completed but eVision is so slow that this is not needed
-                this.get('ignoredStudents').replace(/(\d+\/\d)/g, function (string, match) {
+                this.get('ignoredStudents').replace(/(\d+)/g, function (string, match) {
                     filteredStudents.push(match);
                 });
                 profileLinkPrefix = this.get('profileLinkPrefix');
                 defaultSupervisionComment = this.get('defaultSupervisionComment');
+            },
+            'open': function (document, window, frame) {
+                let changed = false;
+                const saveWarning = $('<span class="field_label" style="display:none">' +
+                    'Values edited – save or cancel changes?</span>');
+                const settingsPopup = $(document);
+                settingsPopup.keydown(function (e) {
+                    if (e.key.toLowerCase() === 'escape') {
+                        if (!changed) {
+                            gmc.close();
+                        } else {
+                            saveWarning.show();
+                        }
+                    }
+                });
+
+                settingsPopup.find('input, textarea').on('change keyup paste', function () {
+                    changed = true;
+                });
+
+                const buttonsHolder = settingsPopup.find('div[id$="_buttons_holder"]');
+                buttonsHolder.prepend(saveWarning);
+                buttonsHolder.find('button[id$="_closeBtn"]').text('Cancel changes');
+                buttonsHolder.find('a[id$="_resetLink"]').click(function () {
+                    changed = true;
+                });
+
+                $(frame).focus(); // so escape key is captured
+            },
+            'save': function () {
+                gmc.close();
             }
         }
     });
@@ -191,11 +222,12 @@
                 // filter out ignored students; add intranet links
                 const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
                     const cellValue = studentTableAPI.cell(rowIdx, 1).data();
+                    const studentNumber = cellValue.trim().split('/')[0];
                     const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
                     studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
-                        cellValue.trim().split('/')[0] + '</a>');
+                        studentNumber + '</a>');
 
-                    const valueFiltered = filteredStudents.includes(cellValue);
+                    const valueFiltered = filteredStudents.includes(studentNumber);
                     if (valueFiltered) {
                         console.log('eVision fixer: filtering student ' + cellValue + ': '
                             + studentTableAPI.cell(rowIdx, 2).data());
