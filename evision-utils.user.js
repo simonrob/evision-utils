@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-11-01
+// @version      2023-11-20
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -329,14 +329,72 @@
             const dateSelector = $('label:contains("Date of engagement?"):not(:has(span))').parent();
             if (dateSelector.length > 0) {
                 dateSelector.find('.sv-col-md-4').addClass('sv-col-md-3').removeClass('sv-col-md-4');
-                $('<div class="sv-col-md-3"><button id="addDateTodayButton" class="sv-btn" style="margin-top:22px">' +
-                    'Auto: today, in-person, UK</button></div>').appendTo(dateSelector.find('.sv-row'));
+                const daySelector = dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]');
+                const monthSelector = dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"]');
+                const yearSelector = dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]');
+
+                // show the month name as well as its number
                 for (let i = 0; i < 12; i++) {
                     const date = new Date(2000, i, 1);
                     const month = date.toLocaleString('default', {month: 'long'});
                     const zeroPadded = ('0' + (i + 1)).slice(-2);
-                    dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"] option[value="' + zeroPadded + '"]').text(month);
+                    monthSelector.find('option[value="' + zeroPadded + '"]').text((i + 1) + ' – ' + month);
                 }
+
+                // convert day name to day of week (updating on month/year change)
+                const setDayName = function () {
+                    const currentDate = new Date(); // default to today
+                    currentDate.setMonth(monthSelector.val() ? monthSelector.val() - 1 : currentDate.getMonth());
+                    currentDate.setYear(yearSelector.val() ? yearSelector.val() : currentDate.getFullYear());
+                    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+                    let i;
+                    for (i = 1; i <= daysInMonth; i++) {
+                        const date = new Date(currentDate);
+                        date.setDate(i);
+                        const day = date.toLocaleString('default', {weekday: 'long'});
+                        const zeroPadded = ('0' + i).slice(-2);
+                        daySelector.find('option[value="' + zeroPadded + '"]').text(i + ' – ' + day);
+                    }
+                    for (; i <= 31; i++) { // the selector always shows all days (which is probably a good thing)
+                        daySelector.find('option[value="' + i + '"]').text(i + ' – N/A');
+                    }
+                };
+
+                // offer to auto-fix invalid dates (snap to nearest date in the valid range)
+                const observer = new MutationObserver(function () {
+                    const dateError = dateSelector.find('span.sv-error-block');
+                    if (dateError.length > 0 && !dateError.hasClass('evision-utils-edited') && dateError.text()) {
+                        dateError.addClass('evision-utils-edited');
+                        const dateErrors = dateError.text().split(' and ');
+                        const firstDate = dateErrors[0].split('between ')[1].split('/');
+                        const secondDate = dateErrors[1].split('.')[0].split('/');
+                        const abbreviationToMonth = function (abbr) {
+                            return new Date(Date.parse(abbr + ' 1, 2000')).getMonth();
+                        };
+                        var boundaryDates = [new Date(firstDate[2], abbreviationToMonth(firstDate[1]), firstDate[0]),
+                            new Date(secondDate[2], abbreviationToMonth(secondDate[1]), secondDate[0])];
+                        var invalidDate = new Date(yearSelector.val(), monthSelector.val() - 1, daySelector.val());
+                        boundaryDates.sort(function (a, b) {
+                            return Math.abs(invalidDate - a) - Math.abs(invalidDate - b);
+                        });
+
+                        dateError.on('click', function () {
+                            dateError.removeClass('evision-utils-edited');
+                            const validDate = boundaryDates[0];
+                            yearSelector.val(validDate.getFullYear());
+                            monthSelector.val(('0' + (validDate.getMonth() + 1)).slice(-2));
+                            daySelector.val(('0' + validDate.getDate()).slice(-2)).change();
+                        }).css({cursor: 'pointer'});
+                        dateError.text(dateError.text() + ' Click here to change to the nearest valid date.');
+                    }
+                });
+                observer.observe(dateSelector.find('span.sv-error-block').get(0), {childList: true});
+                monthSelector.on('change', setDayName);
+                yearSelector.on('change', setDayName);
+                setDayName();
+
+                $('<div class="sv-col-md-3"><button id="addDateTodayButton" class="sv-btn" style="margin-top:22px">' +
+                    'Auto: today, in-person, UK</button></div>').appendTo(dateSelector.find('.sv-row'));
                 $('#addDateTodayButton').click(function (ev) {
                     ev.preventDefault();
 
@@ -344,9 +402,9 @@
                     $('input[id="ANSWER.TTQ.MENSYS.7.2"]').prop('checked', true).change(); // off-campus, UK
 
                     let dateToday = new Date();
-                    dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]').val(('0' + dateToday.getUTCDate()).slice(-2));
+                    dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]').val(dateToday.getUTCFullYear());
                     dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"]').val(('0' + (dateToday.getUTCMonth() + 1)).slice(-2));
-                    dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]').val(dateToday.getUTCFullYear()).change(); // validation
+                    dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]').val(('0' + dateToday.getUTCDate()).slice(-2)).change(); // validation
 
                     const meetingText = $('textarea[id="ANSWER.TTQ.MENSYS.8."]');
                     if (!meetingText.val()) {
