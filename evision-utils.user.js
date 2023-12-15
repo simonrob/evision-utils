@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-11-20
+// @version      2023-12-15
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -171,7 +171,7 @@
             marginTop: '8px',
             width: '70px'
         };
-        $('input[name="NEXT.DUMMY.MENSYS.1"]').filter(function () {
+        $('input[name^="NEXT.DUMMY.MENSYS."]').filter(function () {
             if (this.value.toLowerCase() === 'back') {
                 $(this).parent().css(backStyle);
                 $(this).css(backStyle);
@@ -186,9 +186,49 @@
 
         // TODO: make this wait until elements are ready rather than just a timeout (same with other setTimeout uses)
         window.setTimeout(function () {
-            // redirect from the pointless "Home" page with no actual content to the actual homepage
+            // redirect from the pointless "Home" page with no actual content to the actual homepage (this element's click handler doesn't work directly)
             if ($('h2:contains("Welcome Message")').length > 0) {
-                $('a[aria-label="Research Management"]')[0].click();
+                window.location = $('a[aria-label="Research Management"]').eq(0).attr('href');
+                return;
+            }
+
+            // same with the extenuating circumstances start page (this element's click handler doesn't work directly)
+            if ($('h2:contains("Faculty Academic Staff")').length > 0) {
+                window.location = $('a:contains("View Assessment Outcomes")').eq(0).attr('href');
+                return;
+            }
+
+            // make the extenuating circumstances form a little less painful by replacing select dropdowns with buttons and skipping busywork where possible
+            if ($('h1:contains("Select Year and Module .."),h1:contains("Select Assessment ..")').length > 0) {
+                const ecSelectors = $('select[name^="ANSWER.TTQ.MENSYS."]');
+                ecSelectors.each(function (i) {
+                    const currentSelector = $(this);
+                    const selectReplacement = $('<input type="hidden" name="' + currentSelector.attr('name') + '" />');
+                    const availableOptions = currentSelector.find('option');
+                    availableOptions.filter(':selected').attr('canvas-utils-selected', true); // work around all elements being selected
+                    availableOptions.unwrap().each(function () {
+                        const currentOption = $(this);
+                        const replacementButton = $('<div class="canvas-utils-button sv-btn">' + currentOption.text() + '</div>');
+                        replacementButton.on('click', function () {
+                            replacementButton.parent().find('.canvas-utils-button').removeClass('sv-btn-primary');
+                            replacementButton.addClass('sv-btn-primary');
+                            selectReplacement.val(currentOption.text()); //.closest('form').submit(); // - doesn't work
+                            if (i === ecSelectors.length - 1) {
+                                $('input[name^="NEXT.DUMMY.MENSYS."]').click();
+                            }
+                        });
+                        if (currentOption.attr('canvas-utils-selected')) {
+                            replacementButton.addClass('sv-btn-primary');
+                            selectReplacement.val(currentOption.text());
+                        }
+                        currentOption.replaceWith(replacementButton);
+                        if (i === ecSelectors.length - 1 && availableOptions.length === 1) {
+                            $('input[name^="NEXT.DUMMY.MENSYS."]').click(); // this is a pointless form with just one option - proceed
+                        }
+                    });
+                    selectReplacement.insertAfter($('.canvas-utils-button:last'));
+                });
+                return;
             }
 
             // hide the viva dates and "important notifications" panels
@@ -329,9 +369,9 @@
             const dateSelector = $('label:contains("Date of engagement?"):not(:has(span))').parent();
             if (dateSelector.length > 0) {
                 dateSelector.find('.sv-col-md-4').addClass('sv-col-md-3').removeClass('sv-col-md-4');
-                const daySelector = dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]');
-                const monthSelector = dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"]');
-                const yearSelector = dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]');
+                const daySelector = dateSelector.find('select[name^="SPLITDATE_D.TTQ.MENSYS."]');
+                const monthSelector = dateSelector.find('select[name^="SPLITDATE_M.TTQ.MENSYS."]');
+                const yearSelector = dateSelector.find('select[name^="SPLITDATE_Y.TTQ.MENSYS."]');
 
                 // show the month name as well as its number
                 for (let i = 0; i < 12; i++) {
@@ -363,7 +403,7 @@
                 // offer to auto-fix invalid dates (snap to nearest date in the valid range)
                 const observer = new MutationObserver(function () {
                     const dateError = dateSelector.find('span.sv-error-block');
-                    if (dateError.length > 0 && !dateError.hasClass('evision-utils-edited') && dateError.text()) {
+                    if (dateError.length > 0 && !dateError.hasClass('evision-utils-edited') && dateError.text().indexOf('Invalid date specified') >= 0) {
                         dateError.addClass('evision-utils-edited');
                         const dateErrors = dateError.text().split(' and ');
                         const firstDate = dateErrors[0].split('between ')[1].split('/');
@@ -371,9 +411,9 @@
                         const abbreviationToMonth = function (abbr) {
                             return new Date(Date.parse(abbr + ' 1, 2000')).getMonth();
                         };
-                        var boundaryDates = [new Date(firstDate[2], abbreviationToMonth(firstDate[1]), firstDate[0]),
+                        const boundaryDates = [new Date(firstDate[2], abbreviationToMonth(firstDate[1]), firstDate[0]),
                             new Date(secondDate[2], abbreviationToMonth(secondDate[1]), secondDate[0])];
-                        var invalidDate = new Date(yearSelector.val(), monthSelector.val() - 1, daySelector.val());
+                        const invalidDate = new Date(yearSelector.val(), monthSelector.val() - 1, daySelector.val());
                         boundaryDates.sort(function (a, b) {
                             return Math.abs(invalidDate - a) - Math.abs(invalidDate - b);
                         });
@@ -397,16 +437,15 @@
                     'Auto: today, in-person, UK</button></div>').appendTo(dateSelector.find('.sv-row'));
                 $('#addDateTodayButton').click(function (ev) {
                     ev.preventDefault();
-
-                    $('select[name="ANSWER.TTQ.MENSYS.5"]').val('1').change(); // face-to-face
-                    $('input[id="ANSWER.TTQ.MENSYS.7.2"]').prop('checked', true).change(); // off-campus, UK
+                    $('.sv-control-label:contains("Type of engagement?")').parent().find('select[name^="ANSWER.TTQ.MENSYS."]').val('1').change(); // face-to-face
+                    $('.sv-control-label:contains("Where is the student’s current location of study?")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
 
                     let dateToday = new Date();
-                    dateSelector.find('select[name="SPLITDATE_Y.TTQ.MENSYS.6"]').val(dateToday.getUTCFullYear());
-                    dateSelector.find('select[name="SPLITDATE_M.TTQ.MENSYS.6"]').val(('0' + (dateToday.getUTCMonth() + 1)).slice(-2));
-                    dateSelector.find('select[name="SPLITDATE_D.TTQ.MENSYS.6"]').val(('0' + dateToday.getUTCDate()).slice(-2)).change(); // validation
+                    dateSelector.find('select[name^="SPLITDATE_Y.TTQ.MENSYS."]').val(dateToday.getUTCFullYear());
+                    dateSelector.find('select[name^="SPLITDATE_M.TTQ.MENSYS."]').val(('0' + (dateToday.getUTCMonth() + 1)).slice(-2));
+                    dateSelector.find('select[name^="SPLITDATE_D.TTQ.MENSYS."]').val(('0' + dateToday.getUTCDate()).slice(-2)).change(); // validation
 
-                    const meetingText = $('textarea[id="ANSWER.TTQ.MENSYS.8."]');
+                    const meetingText = $('.sv-control-label:contains("Additional information")').parent().find('textarea[id^="ANSWER.TTQ.MENSYS."]');
                     if (!meetingText.val()) {
                         meetingText.val(defaultSupervisionComment);
                     }
