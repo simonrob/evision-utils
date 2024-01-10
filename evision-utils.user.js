@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2023-12-15
+// @version      2024-01-10
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
-// @match        evision.swan.ac.uk/*
-// @match        evision.swansea.ac.uk/*
-// @match        evision-swanseauniversity.msappproxy.net/*
+// @match        https://evision.swan.ac.uk/*
+// @match        https://evision.swansea.ac.uk/*
+// @match        https://evision-swanseauniversity.msappproxy.net/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=swansea.ac.uk
