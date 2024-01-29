@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-01-10
+// @version      2024-01-29
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @description  Make e:Vision a little less difficult to use
@@ -84,7 +84,7 @@
                 const saveWarning = $('<span class="field_label" style="display:none">' +
                     'Values edited – save or cancel changes?</span>');
                 const settingsPopup = $(document);
-                settingsPopup.keydown(function (e) {
+                settingsPopup.on('keydown', function (e) {
                     if (e.key.toLowerCase() === 'escape') {
                         if (!changed) {
                             gmc.close();
@@ -101,7 +101,7 @@
                 const buttonsHolder = settingsPopup.find('div[id$="_buttons_holder"]');
                 buttonsHolder.prepend(saveWarning);
                 buttonsHolder.find('button[id$="_closeBtn"]').text('Cancel changes');
-                buttonsHolder.find('a[id$="_resetLink"]').click(function () {
+                buttonsHolder.find('a[id$="_resetLink"]').on('click', function () {
                     changed = true;
                 });
 
@@ -116,11 +116,17 @@
     addEventListener('DOMContentLoaded', function () {
         console.log('eVision fixer - setting up modifications');
 
+        const logoutMessage = $('.sv-message-box:contains("logged out of the system")');
+        if (logoutMessage.length > 0) {
+            window.location.href = logoutMessage.find('a').eq(0).attr('href');
+            return;
+        }
+
         // add our own settings button
         $('<button id="sv-header-fixer-settings" type="button" class="sv-navbar-options" ' +
             'title="eVision fixer settings" aria-label="eVision fixer settings"><span ' +
             'class="glyphicon glyphicon-cog"></span></button>').insertBefore('#sv-header-profile');
-        $('#sv-header-fixer-settings').click(function () {
+        $('#sv-header-fixer-settings').on('click', function () {
             gmc.open();
         });
 
@@ -162,14 +168,15 @@
         $('div.sv-tiled-col:contains("Meetings and Events")').hide();
         $('.sv-list-group-item').has('th:contains("Personnel Code")').hide();
 
-        // move the back button to a consistent position
+        // move the back button to a consistent position, and make the top header sticky
         const backStyle = {
-            position: 'absolute',
+            position: 'fixed',
             right: 0,
             top: 0,
-            marginRight: '105px',
-            marginTop: '8px',
-            width: '70px'
+            marginRight: '215px',
+            marginTop: '14px',
+            width: '70px',
+            zIndex: 1000
         };
         $('input[name^="NEXT.DUMMY.MENSYS."]').filter(function () {
             if (this.value.toLowerCase() === 'back') {
@@ -177,11 +184,15 @@
                 $(this).css(backStyle);
             }
         });
+        $('.sv-header-main').css({position: 'fixed', width: '100%', zIndex: 1000});
+        $('.sv-page-wrapper > *').css({marginTop: 65});
+        $('.sv-page-wrapper > *:not(.sv-page-content:has(>.sv-page-header))').css({paddingTop: 16});
+        $('body > .sv-page-content > *').css({marginTop: 65});
 
         // hide the sidebar by default
         const visibleSidebar = $('#sv-sidebar').not('.sv-collapsed');
         if (visibleSidebar.length >= 1) {
-            $('#sv-sidebar-collapse').click();
+            $('#sv-sidebar-collapse').trigger('click');
         }
 
         // TODO: make this wait until elements are ready rather than just a timeout (same with other setTimeout uses)
@@ -214,7 +225,7 @@
                             replacementButton.addClass('sv-btn-primary');
                             selectReplacement.val(currentOption.text()); //.closest('form').submit(); // - doesn't work
                             if (i === ecSelectors.length - 1) {
-                                $('input[name^="NEXT.DUMMY.MENSYS."]').click();
+                                $('input[name^="NEXT.DUMMY.MENSYS."]').trigger('click');
                             }
                         });
                         if (currentOption.attr('canvas-utils-selected')) {
@@ -223,7 +234,8 @@
                         }
                         currentOption.replaceWith(replacementButton);
                         if (i === ecSelectors.length - 1 && availableOptions.length === 1) {
-                            $('input[name^="NEXT.DUMMY.MENSYS."]').click(); // this is a pointless form with just one option - proceed
+                            // this is a pointless form with just one option - proceed
+                            $('input[name^="NEXT.DUMMY.MENSYS."]').trigger('click');
                         }
                     });
                     selectReplacement.insertAfter($('.canvas-utils-button:last'));
@@ -435,7 +447,7 @@
 
                 $('<div class="sv-col-md-3"><button id="addDateTodayButton" class="sv-btn" style="margin-top:22px">' +
                     'Auto: today, in-person, UK</button></div>').appendTo(dateSelector.find('.sv-row'));
-                $('#addDateTodayButton').click(function (ev) {
+                $('#addDateTodayButton').on('click', function (ev) {
                     ev.preventDefault();
                     $('.sv-control-label:contains("Type of engagement?")').parent().find('select[name^="ANSWER.TTQ.MENSYS."]').val('1').change(); // face-to-face
                     $('.sv-control-label:contains("Where is the student’s current location of study?")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
