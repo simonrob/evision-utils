@@ -12,5 +12,9 @@ A userscript to improve e:Vision usability:
 
 
 ## Installation
-1. Install a UserScript extension such as [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
+1. If you don't already have one, install a UserScript browser extension.
+The following options are recommended:
+   - Violentmonkey: for [Firefox](https://addons.mozilla.org/firefox/addon/violentmonkey/), [Chrome](https://chrome.google.com/webstore/detail/violent-monkey/jinjaccalgkegednnccohejagnlnfdag) or [Edge](https://microsoftedge.microsoft.com/addons/detail/eeagobfjdenkkddmbclomhiblgggliao)
+   - Userscripts: for [Safari](https://apps.apple.com/us/app/userscripts/id1463298887)
+
 2. [Click here](https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js) to install the e:Vision utilities script
