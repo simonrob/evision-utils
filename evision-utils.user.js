@@ -1,21 +1,21 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-02-16
+// @version      2024-02-21
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
+// @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js
+// @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @description  Make e:Vision a little less difficult to use
 // @author       Simon Robinson
 // @match        https://evision.swan.ac.uk/*
 // @match        https://evision.swansea.ac.uk/*
 // @match        https://evision-swanseauniversity.msappproxy.net/*
-// @require      https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js
-// @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=swansea.ac.uk
-// @grant        GM_xmlhttpRequest
-// @grant        GM_addStyle
+// @grant        none
 // ==/UserScript==
-/* global $, moment, GM_addStyle, GM_config */
+/* global $, moment, GM_config */
 
 (function () {
     'use strict';
