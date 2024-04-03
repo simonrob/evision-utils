@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-03-04
+// @version      2024-04-03
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
+// @require      https://gist.githubusercontent.com/raw/86cbf1fa9f24f7d821632e9c1ca96571/waitForKeyElements.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @description  Make e:Vision a little less difficult to use
@@ -16,7 +17,7 @@
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
-/* global $, GM_addStyle, GM_config, moment */
+/* global $, GM_addStyle, waitForKeyElements, GM_config, moment */
 
 (function () {
     'use strict';
@@ -36,9 +37,9 @@
     }
 
     // don't show a page about being logged out; just redirect to login
-    const logoutMessage = $('.sv-message-box:contains("logged out of the system")');
+    const logoutMessage = $('.sv-message-box:contains("logged out of the system"),.sv-message-box:contains("request did not complete successfully")');
     if (logoutMessage.length > 0) {
-        window.location.href = logoutMessage.find('a').eq(0).attr('href');
+        window.location.href = '/'; // logoutMessage.find('a').eq(0).attr('href'); // sometimes this is an email address
         return;
     }
 
@@ -103,13 +104,12 @@
         },
         'events': {
             'init': function () {
-                // note: ideally this would link in with the modifications to ensure,
-                // load has completed but eVision is so slow that this is not needed
                 this.get('ignoredStudents').replace(/(\d+)/g, function (string, match) {
                     filteredStudents.push(match);
                 });
                 profileLinkPrefix = this.get('profileLinkPrefix');
                 defaultSupervisionComment = this.get('defaultSupervisionComment');
+                updateStudentDisplay();
             },
             'open': function (document, window, frame) {
                 let changed = false;
@@ -236,8 +236,9 @@
     }
 
     // hide loading dialogs - they seem to do nothing
-    $('.ui-widget-overlay').hide();
-    $('.ui-dialog').hide();
+    waitForKeyElements('.ui-widget-overlay,.ui-dialog', function (e) {
+        e.style.display = 'none';
+    }, {waitOnce: false, allElements: true});
 
     // hide the broken/empty first export button
     const exportButtons = $('.buttons-excel').parent().find('button');
@@ -327,71 +328,80 @@
 
     // get all tables by: $.fn.dataTable.tables()
     // the student list default (i.e., page source) is datatableOptions = { "pageLength": 5, [...] }; // wtf
-    const studentTable = $('#myrs_list');
-    if (studentTable.length > 0) {
-        console.log('eVision fixer: modifying student table');
-        const studentTableAPI = studentTable.dataTable().api();
-        studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
-        $('td[data-ttip="Name"]').each(function () { // trim names
-            const newName = $(this).text().trim().split(' ');
-            $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
-        });
-        $('td[data-ttip="Student Details"]').each(function () { // more obvious link text
-            $(this).find('a').text('Profile');
-        });
-        $('td[data-ttip="Student Forms"]').each(function () { // more obvious link text
-            $(this).find('a').text('Edit / Submit Forms');
-        });
+    // once our settings are loaded, refine the student list display
+    function updateStudentDisplay() {
+        const studentTable = $('#myrs_list');
+        if (studentTable.length > 0) {
+            console.log('eVision fixer: modifying student table', $('label:contains("Student Course Join Number:")').parent().next());
+            const studentTableAPI = studentTable.dataTable().api();
+            studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
+            $('td[data-ttip="Name"]').each(function () { // trim names
+                const newName = $(this).text().trim().split(' ');
+                $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
+            });
+            $('td[data-ttip="Student Details"]').each(function () { // more obvious link text
+                $(this).find('a').text('Profile');
+            });
+            $('td[data-ttip="Student Forms"]').each(function () { // more obvious link text
+                $(this).find('a').text('Edit / Submit Forms');
+            });
 
-        // filter out ignored students; add intranet links
-        const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const cellValue = studentTableAPI.cell(rowIdx, 1).data();
-            const studentNumber = cellValue.trim().split('/')[0];
-            const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
-            studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
-                studentNumber + '</a>');
+            // filter out ignored students; add intranet links
+            const removed = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                const cellValue = studentTableAPI.cell(rowIdx, 1).data();
+                const studentNumber = cellValue.trim().split('/')[0];
+                const studentLink = profileLinkPrefix + encodeURIComponent(cellValue);
+                studentTableAPI.cell(rowIdx, 1).data('<a href="' + studentLink + '" target="_blank">' +
+                    studentNumber + '</a>');
 
-            const valueFiltered = filteredStudents.includes(studentNumber);
-            if (valueFiltered) {
-                console.log('eVision fixer: filtering student ' + cellValue + ': '
-                    + studentTableAPI.cell(rowIdx, 2).data());
-            }
-            return valueFiltered;
-        });
-        studentTableAPI.rows(removed).remove().draw();
+                const valueFiltered = filteredStudents.includes(studentNumber);
+                if (valueFiltered) {
+                    console.log('eVision fixer: filtering student ' + cellValue + ': '
+                        + studentTableAPI.cell(rowIdx, 2).data());
+                }
+                return valueFiltered;
+            });
+            studentTableAPI.rows(removed).remove().draw();
 
-        // de-emphasise secondary-supervised students
-        const deemphasised = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const cellValue = studentTableAPI.cell(rowIdx, 0).data();
-            const valueFiltered = cellValue.toLowerCase().includes('secondary');
-            if (valueFiltered) {
-                console.log('eVision fixer: de-emphasising secondary-supervised student: ' +
-                    studentTableAPI.cell(rowIdx, 2).data());
-            }
-            return valueFiltered;
-        });
-        studentTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
+            // de-emphasise secondary-supervised students
+            const deemphasised = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                const cellValue = studentTableAPI.cell(rowIdx, 0).data();
+                const valueFiltered = cellValue.toLowerCase().includes('secondary');
+                if (valueFiltered) {
+                    console.log('eVision fixer: de-emphasising secondary-supervised student: ' +
+                        studentTableAPI.cell(rowIdx, 2).data());
+                }
+                return valueFiltered;
+            });
+            studentTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
 
-        // highlight PhD students
-        const isPhD = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const startCellDate = moment(studentTableAPI.cell(rowIdx, 4).data(), 'DD/MM/YYYY');
-            const endCellDate = moment(studentTableAPI.cell(rowIdx, 5).data(), 'DD/MM/YYYY');
-            const valueFiltered = endCellDate.diff(startCellDate, 'months') >= 24;
-            if (valueFiltered) {
-                const statusCell = studentTableAPI.cell(rowIdx, 3);
-                statusCell.data(statusCell.data() + ' (PhD)');
-                console.log('eVision fixer: emphasising PhD student: ' +
-                    studentTableAPI.cell(rowIdx, 2).data());
-            }
-            return valueFiltered && !studentTableAPI.cell(rowIdx, 0).data().toLowerCase().includes('secondary');
-        });
-        studentTableAPI.rows(isPhD).nodes().to$().addClass('emphasise');
+            // highlight PhD students
+            const isPhD = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
+                const startCellDate = moment(studentTableAPI.cell(rowIdx, 4).data(), 'DD/MM/YYYY');
+                const endCellDate = moment(studentTableAPI.cell(rowIdx, 5).data(), 'DD/MM/YYYY');
+                const valueFiltered = endCellDate.diff(startCellDate, 'months') >= 24;
+                if (valueFiltered) {
+                    const statusCell = studentTableAPI.cell(rowIdx, 3);
+                    statusCell.data(statusCell.data() + ' (PhD)');
+                    console.log('eVision fixer: emphasising PhD student: ' +
+                        studentTableAPI.cell(rowIdx, 2).data());
+                }
+                return valueFiltered && !studentTableAPI.cell(rowIdx, 0).data().toLowerCase().includes('secondary');
+            });
+            studentTableAPI.rows(isPhD).nodes().to$().addClass('emphasise');
 
-        // sort the students by status, supervision type, then end date
-        // (separately because combined sorting gives a different result)
-        studentTable.dataTable().fnSort([[5, 'asc']]);
-        studentTable.dataTable().fnSort([[3, 'desc']]);
-        studentTable.dataTable().fnSort([[0, 'asc']]);
+            // sort the students by status, supervision type, then end date
+            // (separately because combined sorting gives a different result)
+            studentTable.dataTable().fnSort([[5, 'asc']]);
+            studentTable.dataTable().fnSort([[3, 'desc']]);
+            studentTable.dataTable().fnSort([[0, 'asc']]);
+        }
+
+        // link student numbers on meeting record pages
+        const meetingStudentLabel = $('label:contains("Student Course Join Number:")').parent().next();
+        const studentNumber = meetingStudentLabel.text().trim().split('/')[0];
+        const studentLink = profileLinkPrefix + encodeURIComponent(meetingStudentLabel.text().trim());
+        meetingStudentLabel.html('<a href="' + studentLink + '" target="_blank">' + studentNumber + '</a>');
     }
 
     const generalMeetingsTable = $('#supTab');
@@ -403,8 +413,8 @@
         setTimeout(function () {
             $('a.sv-btn').each(function () {
                 // open tasks in new window so the "letters" page doesn't need reloading all the time
-                // TODO: be aware that eVision is only capable of editing one form at once...
-                $(this).attr('target', '_blank');
+                // TODO: be aware that eVision is only capable of editing one form at once... disabled as it often causes logout
+                // $(this).attr('target', '_blank');
             });
         }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
     }
@@ -443,8 +453,8 @@
         setTimeout(function () {
             $('a.sv-btn').each(function () {
                 // open tasks in new window so the "letters" page doesn't need reloading all the time
-                // TODO: be aware that eVision is only capable of editing one form at once...
-                $(this).attr('target', '_blank');
+                // TODO: be aware that eVision is only capable of editing one form at once... disabled as it often causes logout
+                // $(this).attr('target', '_blank');
             });
         }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
     }
@@ -522,7 +532,7 @@
         $('#addDateTodayButton').on('click', function (ev) {
             ev.preventDefault();
             $('.sv-control-label:contains("Type of engagement?")').parent().find('select[name^="ANSWER.TTQ.MENSYS."]').val('1').change(); // face-to-face
-            $('.sv-control-label:contains("Where is the student’s current location of study?")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
+            $('.sv-control-label,.sv-checkbox-text').filter(':contains("Where is the student\'s current location of study?")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
 
             let dateToday = new Date();
             dateSelector.find('select[name^="SPLITDATE_Y.TTQ.MENSYS."]').val(dateToday.getUTCFullYear());
