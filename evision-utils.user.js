@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-04-03
+// @version      2024-04-17
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -532,7 +532,7 @@
         $('#addDateTodayButton').on('click', function (ev) {
             ev.preventDefault();
             $('.sv-control-label:contains("Type of engagement?")').parent().find('select[name^="ANSWER.TTQ.MENSYS."]').val('1').change(); // face-to-face
-            $('.sv-control-label,.sv-checkbox-text').filter(':contains("Where is the student\'s current location of study?")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
+            $('.sv-control-label,.sv-checkbox-text').filter(':contains("Where is the student")').parent().find('input[id^="ANSWER.TTQ.MENSYS."][id$="2"]').prop('checked', true).change(); // off-campus, UK
 
             let dateToday = new Date();
             dateSelector.find('select[name^="SPLITDATE_Y.TTQ.MENSYS."]').val(dateToday.getUTCFullYear());
