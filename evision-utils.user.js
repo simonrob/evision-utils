@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-04-17
+// @version      2024-04-29
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -336,8 +336,9 @@
             const studentTableAPI = studentTable.dataTable().api();
             studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
             $('td[data-ttip="Name"]').each(function () { // trim names
-                const newName = $(this).text().trim().split(' ');
-                $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
+                const currentPerson = $(this);
+                const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
+                currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
             });
             $('td[data-ttip="Student Details"]').each(function () { // more obvious link text
                 $(this).find('a').text('Profile');
@@ -426,8 +427,9 @@
         meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
 
         meetingsTable.find('td:nth-child(2)').each(function () {
-            const newName = $(this).text().trim().split(' ');
-            $(this).text(newName[0] + ' ' + newName[newName.length - 1]);
+            const currentPerson = $(this);
+            const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
+            currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
         });
 
         // de-emphasise past meetings
