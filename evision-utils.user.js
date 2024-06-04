@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-04-29
+// @version      2024-06-04
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -13,7 +13,7 @@
 // @match        https://evision.swan.ac.uk/*
 // @match        https://evision.swansea.ac.uk/*
 // @match        https://evision-swanseauniversity.msappproxy.net/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=evision.swansea.ac.uk
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=tribalgroup.com
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
@@ -545,6 +545,14 @@
             if (!meetingText.val()) {
                 meetingText.val(defaultSupervisionComment);
             }
+        });
+
+        // add naive (but very useful) exit confirmation to avoid losing information when entering meeting notes
+        $(window).on('beforeunload', function () {
+            return true;
+        });
+        $('input[id^="ANSWER.TTQ.MENSYS."]').on('click', function () {
+            $(window).off('beforeunload');
         });
     }
 
