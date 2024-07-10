@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-06-04
+// @version      2024-07-10
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -92,7 +92,7 @@
                 'default': '123456 // example ignored student number'
             },
             'profileLinkPrefix': {
-                'label': 'The URL to use when linking to student profiles. Student numbers will be appended to this value',
+                'label': 'The URL to use when linking to student profiles. Student/occurrence numbers will be appended to this value',
                 'type': 'text',
                 'default': 'https://intranet.swan.ac.uk/students/fra_stu_detail.asp?id='
             },
@@ -189,6 +189,9 @@
     if (visibleSidebar.length >= 1) {
         $('#sv-sidebar-collapse').trigger('click');
     }
+    $('#STAFF_HOME').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-home');
+    $('#ECR-HOME').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-hourglass');
+    $('#RSH_TMP2').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-education');
 
     // show the hidden "return to home" menu button (and rename it)
     $('li[role="menuitem"]').addClass('sv-active').children('a').text('Home');
@@ -396,6 +399,9 @@
             studentTable.dataTable().fnSort([[5, 'asc']]);
             studentTable.dataTable().fnSort([[3, 'desc']]);
             studentTable.dataTable().fnSort([[0, 'asc']]);
+
+            // our updates break (and make obsolete) the page/previous/next buttons - hide them
+            $('#myrs_list_length,#myrs_list_previous,#myrs_list_next').hide();
         }
 
         // link student numbers on meeting record pages
