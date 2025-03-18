@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2024-07-22
+// @version      2025-03-13
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -46,7 +46,7 @@
     }
 
     // don't show a page about being logged out; just redirect to login page
-    const logoutMessage = $('.sv-message-box:contains("logged out of the system"),.sv-message-box:contains("request did not complete successfully")');
+    const logoutMessage = $('.sv-message-box:contains("logged out of the system"),.sv-message-box:contains("log in and try again"),.sv-message-box:contains("request did not complete successfully")');
     if (logoutMessage.length > 0) {
         window.location.href = '/'; // logoutMessage.find('a').eq(0).attr('href'); // sometimes this is an email address
         return;
@@ -568,6 +568,61 @@
         });
         $('input[id^="ANSWER.TTQ.MENSYS."]').on('click', function () {
             $(window).off('beforeunload');
+        });
+    }
+
+    // make ad hoc meeting scheduling a little more usable
+    const adHocPanel = $('div.sv-panel-heading:contains("Schedule a Meeting for")').parent();
+    if (adHocPanel.length > 0) {
+        const daySelectors = adHocPanel.find('select[name^="SPLITDATE_D.TTQ.MENSYS."]');
+        const monthSelectors = adHocPanel.find('select[name^="SPLITDATE_M.TTQ.MENSYS."]');
+        const yearSelectors = adHocPanel.find('select[name^="SPLITDATE_Y.TTQ.MENSYS."]');
+
+        // convert day name to day of week (updating on month/year change)
+        const setDayName = function (daySelector, monthSelector, yearSelector) {
+            const currentDate = new Date(); // default to today
+            currentDate.setMonth(monthSelector.val() ? monthSelector.val() - 1 : currentDate.getMonth());
+            currentDate.setYear(yearSelector.val() ? yearSelector.val() : currentDate.getFullYear());
+            const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+            let i;
+            for (i = 1; i <= daysInMonth; i++) {
+                const date = new Date(currentDate);
+                date.setDate(i);
+                const day = date.toLocaleString('default', {weekday: 'long'});
+                const zeroPadded = ('0' + i).slice(-2);
+                daySelector.find('option[value="' + zeroPadded + '"]').text(i + ' – ' + day);
+            }
+            for (; i <= 31; i++) { // the selector always shows all days (which is probably a good thing)
+                daySelector.find('option[value="' + i + '"]').text(i + ' – N/A');
+            }
+        };
+
+        // show the month name as well as its number
+        monthSelectors.each(function (index, monthSelector) {
+            const currentMonthSelector = $(monthSelector);
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(2000, i, 1);
+                const month = date.toLocaleString('default', {month: 'long'});
+                const zeroPadded = ('0' + (i + 1)).slice(-2);
+                currentMonthSelector.find('option[value="' + zeroPadded + '"]').text((i + 1) + ' – ' + month);
+            }
+            currentMonthSelector.on('change', function () {
+                setDayName($(daySelectors[index]), currentMonthSelector, $(yearSelectors[index]));
+            });
+        });
+
+        // set up year selector change events
+        const today = new Date();
+        yearSelectors.each(function (index, yearSelector) {
+            const currentDaySelector = $(daySelectors[index]);
+            const currentMonthSelector = $(monthSelectors[index]);
+            const currentYearSelector = $(yearSelector);
+            currentYearSelector.on('change', function () {
+                setDayName(currentDaySelector, currentMonthSelector, currentYearSelector);
+            });
+            currentDaySelector.val(('0' + today.getDate()).slice(-2));
+            currentMonthSelector.val(('0' + (today.getMonth() + 1)).slice(-2));
+            currentYearSelector.val(today.getFullYear()).trigger('change');
         });
     }
 
