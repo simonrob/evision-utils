@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-03-13
+// @version      2025-03-20
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -70,6 +70,9 @@
         }
         .deemphasise span.sv-label {
             background-color: rgb(119, 119, 119, 0.1);
+        }
+        .overdue {
+            color: #ccc;
         }
         img[src$="working.gif"] {
             /* hide the loading image that moves fields just when you're about to click them */
@@ -174,10 +177,19 @@
     });
 
     // make dates sortable - see guide at https://datatables.net/blog/2014-12-18
+    // and https://cdn.datatables.net/plug-ins/2.2.2/sorting/datetime-moment.js
+    function stripMoment(d) {
+        if (typeof d === 'string') {
+            d = d.replace(/(<.*?>)|(\r?\n|\r)/g, '').trim(); // remove HTML tags, newlines and whitespace
+        }
+        return d;
+    }
+
     $.fn.dataTable.moment = function (format, locale, reverseEmpties) {
         // add type detection
         const types = $.fn.dataTable.ext.type;
         types.detect.unshift(function (d) {
+            d = stripMoment(d);
             if (d === '' || d === null) {
                 return 'moment-' + format; // null and empty values are acceptable
             }
@@ -187,11 +199,13 @@
 
         // add sorting method
         types.order['moment-' + format + '-pre'] = function (d) {
+            d = stripMoment(d);
             return !moment(d, format, locale, true).isValid() ?
                 (reverseEmpties ? -Infinity : Infinity) : parseInt(moment(d, format, locale, true).format('x'), 10);
         };
     };
-    $.fn.dataTable.moment('DD/MM/YYYY');
+    $.fn.dataTable.moment('DD/MM/YYYY'); // most dates are in this format
+    $.fn.dataTable.moment('DD/MMM/YYYY'); // ...except for except for individual meetings
 
     // hide the sidebar by default
     const visibleSidebar = $('#sv-sidebar').not('.sv-collapsed');
@@ -435,30 +449,64 @@
         }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
     }
 
+    // individual meetings with a single student
     const meetingsTable = $('#DataTables_Table_0');
     if (meetingsTable.length > 0) {
         console.log('eVision fixer: modifying individual meetings table');
         const meetingsTableAPI = meetingsTable.dataTable().api();
         meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
+        meetingsTable.dataTable().fnSort([[4, 'asc']]); // sort by meeting end date
+        meetingsTable.dataTable().fnSort([[3, 'asc']]); // then by meeting start date
 
+        // fix unusual role configuration display bug
+        meetingsTable.find('td:nth-child(1)').each(function () {
+            const currentRole = $(this);
+            if (currentRole.text().indexOf('PrimarySecondaryPrimary and Secondary') >= 0) {
+                currentRole.text('Primary and Secondary');
+            }
+        });
+
+        // normalise name display
         meetingsTable.find('td:nth-child(2)').each(function () {
             const currentPerson = $(this);
             const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
             currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
         });
 
-        // de-emphasise past meetings
+        // change the display of past or overdue meetings
         const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const cellValue = meetingsTableAPI.cell(rowIdx, 6).data();
-            const valueFiltered = cellValue.toLowerCase().includes('complete');
-            if (valueFiltered) {
-                console.log('eVision fixer: de-emphasising past meeting: ' +
+            const outcomeCellValue = meetingsTableAPI.cell(rowIdx, 6).data();
+            const meetingComplete = outcomeCellValue.toLowerCase().includes('complete');
+            if (meetingComplete) {
+                console.log('eVision fixer: de-emphasising completed meeting: ' +
                     meetingsTableAPI.cell(rowIdx, 2).data());
             }
-            return valueFiltered;
+            return meetingComplete;
+        });
+        const overdue = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
+            const outcomeCell = meetingsTableAPI.cell(rowIdx, 6);
+            const outcomeCellValue = outcomeCell.data().toLowerCase();
+            const meetingComplete = outcomeCellValue.includes('complete');
+            if (!meetingComplete) {
+                const rowDueDate = moment(meetingsTableAPI.cell(rowIdx, 3).data(), 'DD/MMM/YYYY').toDate();
+                const today = new Date();
+                if (rowDueDate < today) {
+                    console.log(rowDueDate, 'is expired');
+                    if (outcomeCellValue.includes('pending')) {
+                        outcomeCell.data('<span class="sv-label sv-label-danger"><span ' +
+                            'class="glyphicon glyphicon-exclamation-sign"></span> Incomplete</span>');
+                    } else {
+                        outcomeCell.data('<span class="sv-label sv-label-danger"><span ' +
+                            'class="glyphicon glyphicon-exclamation-sign"></span> Overdue</span>');
+                    }
+                    return true;
+                }
+            }
+            return false;
         });
         meetingsTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
-        const lastFinishedMeeting = $('.deemphasise:last');
+        meetingsTableAPI.rows(overdue).nodes().to$().addClass('overdue');
+        const lastFinishedMeeting = $('.deemphasise,.overdue').filter(':last');
         if (lastFinishedMeeting.length >= 0) {
             lastFinishedMeeting[0].scrollIntoView({
                 behavior: 'smooth',
@@ -466,6 +514,9 @@
                 block: 'center'
             });
         }
+
+        // force re-rendering the table to fix an issue with date sorting not working
+        meetingsTable.DataTable().rows().invalidate('data').draw(false);
 
         setTimeout(function () {
             $('a.sv-btn').each(function () {
