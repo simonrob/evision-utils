@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-03-20
+// @version      2025-04-03
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -514,6 +514,9 @@
                 block: 'center'
             });
         }
+
+        // make the ad-hoc meeting button always show regardless of scroll
+        $('a.sv-btn:contains("Create Adhoc Meeting")').css(backStyle).css({width: 'auto', marginRight: '300px'});
 
         // force re-rendering the table to fix an issue with date sorting not working
         meetingsTable.DataTable().rows().invalidate('data').draw(false);
