@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-04-03
+// @version      2025-06-03
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -93,6 +93,7 @@
     const filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
     let profileLinkPrefix = ''; // basic for now, but could be extended if needed
     let defaultSupervisionComment = '';
+    let defaultAdhocMeetingName = '';
     const gmc = new GM_config({
         'id': 'evision-fixer',
         'title': 'eVision Fixer Settings',
@@ -112,6 +113,11 @@
                 'label': 'Text to insert at the start of the additional meeting box for monthly engagement checks',
                 'type': 'text',
                 'default': ''
+            },
+            'defaultAdhocMeetingName': {
+                'label': 'Meeting name to auto-fill when scheduling ad-hoc meetings',
+                'type': 'text',
+                'default': ''
             }
         },
         'events': {
@@ -121,6 +127,7 @@
                 });
                 profileLinkPrefix = this.get('profileLinkPrefix');
                 defaultSupervisionComment = this.get('defaultSupervisionComment');
+                defaultAdhocMeetingName = this.get('defaultAdhocMeetingName');
                 updateStudentDisplay();
             },
             'open': function (document, window, frame) {
@@ -651,6 +658,16 @@
             }
         };
 
+        // link start and end days
+        daySelectors.each(function (index, daySelector) {
+            const currentDaySelector = $(daySelector);
+            currentDaySelector.on('change', function () {
+                if (index !== 1) { // link end data - hacky, but fine as there are only two date fields
+                    $(daySelectors[1]).val(currentDaySelector.val()).trigger('change');
+                }
+            });
+        });
+
         // show the month name as well as its number
         monthSelectors.each(function (index, monthSelector) {
             const currentMonthSelector = $(monthSelector);
@@ -662,6 +679,9 @@
             }
             currentMonthSelector.on('change', function () {
                 setDayName($(daySelectors[index]), currentMonthSelector, $(yearSelectors[index]));
+                if (index !== 1) { // link end data - hacky, but fine as there are only two date fields
+                    $(monthSelectors[1]).val(currentMonthSelector.val()).trigger('change');
+                }
             });
         });
 
@@ -673,11 +693,32 @@
             const currentYearSelector = $(yearSelector);
             currentYearSelector.on('change', function () {
                 setDayName(currentDaySelector, currentMonthSelector, currentYearSelector);
+                if (index !== 1) { // link end data - hacky, but fine as there are only two date fields
+                    $(yearSelectors[1]).val(currentYearSelector.val()).trigger('change');
+                }
             });
             currentDaySelector.val(('0' + today.getDate()).slice(-2));
             currentMonthSelector.val(('0' + (today.getMonth() + 1)).slice(-2));
             currentYearSelector.val(today.getFullYear()).trigger('change');
         });
+
+        // hide the unnecessary end date view (we link both fields to show the same date) and initialise the title
+        $(yearSelectors.slice(-1)[0]).closest('.sv-form-group').hide();
+        $(yearSelectors[0]).closest('.sv-form-group').find('p.sv-checkbox-text').text('Meeting Date');
+        setTimeout(function () {
+            const meetingText = adHocPanel.find('input.sv-form-control[id^="ANSWER.TTQ.MENSYS."]');
+            if (!meetingText.val()) {
+                meetingText.val(defaultAdhocMeetingName);
+            }
+        }, 250); // hacky fix just to wait for the variable to be initialised
+
+        // fix the scheduled meeting deletion button - just override the inbuilt function that for some reason is broken
+        window.deleteRDE = function (rdekeys) {
+            if (confirm('Delete this ad hoc meeting?')) {
+                $('[data-ttqseqn=4]').val(rdekeys);
+                $('[data-ttqseqn=2]').click();
+            }
+        };
     }
 
     // show meeting records by default
