@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-06-03
+// @version      2025-09-01
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -87,6 +87,11 @@
             top: 65px;
             background: #fff;
             z-index: 1;
+        }
+
+        .sv-sidebar-menubar {
+            /* make the side menu visible even when scrolled */
+            position:fixed;
         }
     `);
 
@@ -731,4 +736,12 @@
 
     // expand forms to the full page width
     $('div.sv-col-sm-4').removeClass('sv-col-sm-4').addClass('sv-col-sm-9');
+
+    // for any remaining pages, always show all table rows by default
+    $.fn.dataTable.tables().forEach((t) => {
+        const dataTableAPI = $(t).dataTable().api();
+        if (dataTableAPI) {
+            dataTableAPI.page.len(-1).draw();
+        }
+    });
 })();
