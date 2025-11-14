@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-09-01
+// @version      2025-11-14
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -274,8 +274,9 @@
     }
 
     // hide loading dialogs - they seem to do nothing
-    waitForKeyElements('.ui-widget-overlay,.ui-dialog', function (e) {
-        e.style.display = 'none';
+    waitForKeyElements('#sits_loading_dialog', function (e) {
+        $(e).closest('.ui-dialog').hide();
+        $('.ui-widget-overlay').hide();
     }, {waitOnce: false, allElements: true});
 
     // hide the broken/empty first export button
