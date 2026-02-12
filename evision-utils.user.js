@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2025-11-14
+// @version      2026-02-12
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -253,6 +253,7 @@
             $(this).css(backStyle);
         }
     });
+    // $('a.sv-btn:contains("Create Adhoc Meeting")')[0].innerText = 'Create / edit ad hoc meeting '; // breaks button
     $('.sv-header-main').css({position: 'fixed', width: '100%', zIndex: 1000});
     $('.sv-page-wrapper > *').css({marginTop: 65}); // 65 = navbar height
     $('.sv-page-wrapper > *:not(.sv-page-content:has(>.sv-page-header))').css({paddingTop: 16});
@@ -418,8 +419,8 @@
 
             // highlight PhD students
             const isPhD = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-                const startCellDate = moment(studentTableAPI.cell(rowIdx, 4).data(), 'DD/MM/YYYY');
-                const endCellDate = moment(studentTableAPI.cell(rowIdx, 5).data(), 'DD/MM/YYYY');
+                const startCellDate = moment(studentTableAPI.cell(rowIdx, 5).data(), 'DD/MM/YYYY');
+                const endCellDate = moment(studentTableAPI.cell(rowIdx, 6).data(), 'DD/MM/YYYY');
                 const valueFiltered = endCellDate.diff(startCellDate, 'months') >= 24;
                 if (valueFiltered) {
                     const statusCell = studentTableAPI.cell(rowIdx, 3);
