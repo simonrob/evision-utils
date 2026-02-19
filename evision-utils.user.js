@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2026-02-12
+// @version      2026-02-19
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -489,20 +489,20 @@
 
         // change the display of past or overdue meetings
         const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const outcomeCellValue = meetingsTableAPI.cell(rowIdx, 6).data();
+            const outcomeCellValue = meetingsTableAPI.cell(rowIdx, 7).data();
             const meetingComplete = outcomeCellValue.toLowerCase().includes('complete');
             if (meetingComplete) {
                 console.log('eVision fixer: de-emphasising completed meeting: ' +
-                    meetingsTableAPI.cell(rowIdx, 2).data());
+                    meetingsTableAPI.cell(rowIdx, 3).data());
             }
             return meetingComplete;
         });
         const overdue = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
-            const outcomeCell = meetingsTableAPI.cell(rowIdx, 6);
+            const outcomeCell = meetingsTableAPI.cell(rowIdx, 7);
             const outcomeCellValue = outcomeCell.data().toLowerCase();
             const meetingComplete = outcomeCellValue.includes('complete');
             if (!meetingComplete) {
-                const rowDueDate = moment(meetingsTableAPI.cell(rowIdx, 3).data(), 'DD/MMM/YYYY').toDate();
+                const rowDueDate = moment(meetingsTableAPI.cell(rowIdx, 4).data(), 'DD/MMM/YYYY').toDate();
                 const today = new Date();
                 if (rowDueDate < today) {
                     console.log(rowDueDate, 'is expired');
