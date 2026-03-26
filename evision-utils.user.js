@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2026-02-19
+// @version      2026-03-26
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -452,7 +452,7 @@
     if (generalMeetingsTable.length > 0) {
         console.log('eVision fixer: modifying generic meetings table');
         generalMeetingsTable.dataTable().api().page.len(-1).draw(); // show all rows in "Meetings and Events"
-        generalMeetingsTable.dataTable().fnSort([[0, 'asc'], [3, 'asc']]); // sort by supervision type then date
+        generalMeetingsTable.dataTable().fnSort([[0, 'asc'], [4, 'asc']]); // sort by supervision type then date
 
         setTimeout(function () {
             $('a.sv-btn').each(function () {
@@ -469,8 +469,8 @@
         console.log('eVision fixer: modifying individual meetings table');
         const meetingsTableAPI = meetingsTable.dataTable().api();
         meetingsTableAPI.page.len(-1).draw(); // show all meeting list rows (an individual student's details)
-        meetingsTable.dataTable().fnSort([[4, 'asc']]); // sort by meeting end date
-        meetingsTable.dataTable().fnSort([[3, 'asc']]); // then by meeting start date
+        meetingsTable.dataTable().fnSort([[5, 'asc']]); // sort by meeting end date
+        meetingsTable.dataTable().fnSort([[4, 'asc']]); // then by meeting start date
 
         // fix unusual role configuration display bug
         meetingsTable.find('td:nth-child(1)').each(function () {
