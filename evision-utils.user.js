@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2026-03-26
+// @version      2026-03-31
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -220,13 +220,13 @@
     $.fn.dataTable.moment('DD/MMM/YYYY'); // ...except for except for individual meetings
 
     // hide the sidebar by default
-    const visibleSidebar = $('#sv-sidebar').not('.sv-collapsed');
+    const visibleSidebar = $('#sv-vnavbar-menubar').not('.sv-vnavbar-collapse');
     if (visibleSidebar.length >= 1) {
         $('#sv-sidebar-collapse').trigger('click');
     }
-    $('#STAFF_HOME').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-home');
-    $('#ECR-HOME').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-hourglass');
-    $('#RSH_TMP2').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-education');
+    $('a.sv-vnavbar-stop[aria-label="Home"]').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-home');
+    $('a.sv-vnavbar-stop[aria-label="Extenuating Circumstances"]').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-hourglass');
+    $('a.sv-vnavbar-stop[aria-label="Research Management"]').find('span:first').removeClass('glyphicon-chevron-right').addClass('glyphicon-education');
 
     // show the hidden "return to home" menu button (and rename it)
     $('li[role="menuitem"]').addClass('sv-active').children('a').text('Home');
@@ -242,7 +242,7 @@
         position: 'fixed',
         right: 0,
         top: 0,
-        marginRight: '215px',
+        marginRight: '285px',
         marginTop: '14px',
         width: '70px',
         zIndex: 1000
@@ -254,10 +254,10 @@
         }
     });
     // $('a.sv-btn:contains("Create Adhoc Meeting")')[0].innerText = 'Create / edit ad hoc meeting '; // breaks button
-    $('.sv-header-main').css({position: 'fixed', width: '100%', zIndex: 1000});
-    $('.sv-page-wrapper > *').css({marginTop: 65}); // 65 = navbar height
-    $('.sv-page-wrapper > *:not(.sv-page-content:has(>.sv-page-header))').css({paddingTop: 16});
-    $('body > .sv-page-content > *').css({marginTop: 65});
+    if (window.location.pathname !== '/urd/sits.urd/run/siw_lgn') {
+        // the navbar is now sticky by default, except for on the login page
+        $('.sv-header-main').css({position: 'fixed', width: '100%', zIndex: 1000});
+    }
 
     // add sticky headers for large tables
     const originalHeader = $('table[id^="DataTables_"] thead tr');
@@ -266,7 +266,7 @@
         const stickyOffset = originalHeader.offset().top;
         stickyHeader.addClass('sticky').insertAfter(originalHeader).hide();
         $(window).on('scroll', function () {
-            if ($(window).scrollTop() + 65 > stickyOffset) {
+            if ($(window).scrollTop() + 65 > stickyOffset) { // 65 = navbar height
                 stickyHeader.show();
             } else {
                 stickyHeader.hide();
@@ -366,6 +366,14 @@
         }
     }
 
+    // normalise names
+    function trimNames() {
+        const currentPerson = $(this);
+        const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
+        currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
+        console.log('person', currentPerson[0], newName, currentPerson.text());
+    }
+
     // get all tables by: $.fn.dataTable.tables()
     // the student list default (i.e., page source) is datatableOptions = { "pageLength": 5, [...] }; // wtf
     // once our settings are loaded, refine the student list display
@@ -376,11 +384,7 @@
             console.log('eVision fixer: modifying student table', meetingStudentLabel);
             const studentTableAPI = studentTable.dataTable().api();
             studentTableAPI.page.len(-1).draw(); // show all rows in the list of students ("My Research Students")
-            $('td[data-ttip="Name"]').each(function () { // trim names
-                const currentPerson = $(this);
-                const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
-                currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
-            });
+            $('td[data-ttip="Name"]').each(trimNames);
             $('td[data-ttip="Student Details"]').each(function () { // more obvious link text
                 $(this).find('a').text('Profile');
             });
@@ -472,21 +476,6 @@
         meetingsTable.dataTable().fnSort([[5, 'asc']]); // sort by meeting end date
         meetingsTable.dataTable().fnSort([[4, 'asc']]); // then by meeting start date
 
-        // fix unusual role configuration display bug
-        meetingsTable.find('td:nth-child(1)').each(function () {
-            const currentRole = $(this);
-            if (currentRole.text().indexOf('PrimarySecondaryPrimary and Secondary') >= 0) {
-                currentRole.text('Primary and Secondary');
-            }
-        });
-
-        // normalise name display
-        meetingsTable.find('td:nth-child(2)').each(function () {
-            const currentPerson = $(this);
-            const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
-            currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
-        });
-
         // change the display of past or overdue meetings
         const deemphasised = meetingsTableAPI.rows().eq(0).filter(function (rowIdx) {
             const outcomeCellValue = meetingsTableAPI.cell(rowIdx, 7).data();
@@ -520,28 +509,41 @@
         });
         meetingsTableAPI.rows(deemphasised).nodes().to$().addClass('deemphasise');
         meetingsTableAPI.rows(overdue).nodes().to$().addClass('overdue');
-        const lastFinishedMeeting = $('.deemphasise,.overdue').filter(':last');
-        if (lastFinishedMeeting.length >= 0) {
-            lastFinishedMeeting[0].scrollIntoView({
-                behavior: 'smooth',
-                inline: 'center',
-                block: 'center'
-            });
-        }
 
         // make the ad-hoc meeting button always show regardless of scroll
-        $('a.sv-btn:contains("Create Adhoc Meeting")').css(backStyle).css({width: 'auto', marginRight: '300px'});
+        $('a.sv-btn:contains("Create Adhoc Meeting")').css(backStyle).css({width: 'auto', marginRight: '380px'});
 
         // force re-rendering the table to fix an issue with date sorting not working
         meetingsTable.DataTable().rows().invalidate('data').draw(false);
 
+        // slight hack: need a brief delay to allow for table layout to complete
         setTimeout(function () {
             $('a.sv-btn').each(function () {
                 // open tasks in new window so the "letters" page doesn't need reloading all the time
                 // TODO: be aware that eVision is only capable of editing one form at once... disabled as it often causes logout
                 // $(this).attr('target', '_blank');
             });
-        }, 250); // the target (default: _top) is added after initial page load, so change after a brief timeout
+
+            const lastFinishedMeeting = $('.deemphasise,.overdue').filter(':last');
+            if (lastFinishedMeeting.length >= 0) {
+                lastFinishedMeeting[0].scrollIntoView({
+                    behavior: 'smooth',
+                    inline: 'center',
+                    block: 'center'
+                });
+            }
+
+            // fix unusual role configuration display bug
+            meetingsTable.find('td:nth-child(1)').each(function () {
+                const currentRole = $(this);
+                if (currentRole.text().indexOf('PrimarySecondaryPrimary and Secondary') >= 0) {
+                    currentRole.text('Primary and Secondary');
+                }
+            });
+
+            // normalise name display
+            meetingsTable.find('td:nth-child(3)').each(trimNames);
+        }, 250);
     }
 
     // make date selectors a little more usable
