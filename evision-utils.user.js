@@ -216,6 +216,20 @@
     $.fn.dataTable.moment('DD/MM/YYYY'); // most dates are in this format
     $.fn.dataTable.moment('DD/MMM/YYYY'); // ...except for except for individual meetings
 
+    // custom sort order for supervision types (primary should show first)
+    $.fn.dataTable.ext.type.order['supervision-pre'] = function (d) {
+        switch (d) {
+            case 'Primary Supervisor':
+                return 1;
+            case 'Secondary Supervisor':
+                return 2;
+            case 'Internal Advisor':
+                return 3;
+            default:
+                return 99;
+        }
+    };
+
     // hide the sidebar by default
     const visibleSidebar = $('#sv-vnavbar-menubar').not('.sv-vnavbar-collapse');
     if (visibleSidebar.length >= 1) {
@@ -425,6 +439,10 @@
                 return valueFiltered && !/secondary|internal/.test(studentTableAPI.cell(rowIdx, 0).data().toLowerCase());
             });
             studentTableAPI.rows(isPhD).nodes().to$().addClass('emphasise');
+
+            // apply our custom sort order
+            // studentTableAPI.column(0).nodes().to$().each(function () { });  // force data reload if needed
+            studentTableAPI.settings()[0].aoColumns[0].sType = 'supervision';
 
             // sort the students by status, supervision type, then end date
             // (separately because combined sorting gives a different result)
