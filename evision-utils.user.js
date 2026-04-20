@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2026-03-31
+// @version      2026-04-20
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -25,18 +25,15 @@
     console.log('eVision fixer - setting up modifications');
 
     // redirect from the pointless "Home" page with no actual content to the actual homepage (this element's click handler doesn't work directly)
-    const redirectToStudentsPage = '#redirect-to-students-page=true';
     if ($('h2:contains("Welcome Message")').length > 0) {
         const researchManagementUrl = $('a[aria-label="Research Management"]').eq(0);
-        window.location = researchManagementUrl.attr('href') + redirectToStudentsPage;
+        window.location = researchManagementUrl.attr('href');
         return;
     }
 
     if ($('#sitsportalpagetitle:contains("Research Staff")').length > 0) {
-        if (window.location.hash === redirectToStudentsPage) {
-            window.location = $('a:contains("My Research Students")').eq(0).attr('href');
-            return;
-        }
+        window.location = $('a:contains("My Research Students")').eq(0).attr('href');
+        return;
     }
 
     // same with the extenuating circumstances start page (this element's click handler doesn't work directly)
@@ -231,12 +228,6 @@
     // show the hidden "return to home" menu button (and rename it)
     $('li[role="menuitem"]').addClass('sv-active').children('a').text('Home');
 
-    // hide the slow and pointless "Meetings and Events" option and the personnel details table, and the viva dates
-    // and "important notifications" panels (they are never important)
-    $('div.sv-tiled-col:contains("Meetings and Events")').hide();
-    $('.sv-list-group-item').has('th:contains("Personnel Code")').hide();
-    $('div.sv-list-group:contains("Important Notifications")').hide();
-
     // move the back button to a consistent position, and make the top header sticky
     const backStyle = {
         position: 'fixed',
@@ -371,7 +362,6 @@
         const currentPerson = $(this);
         const newName = currentPerson.text().trim().split(' ').filter(n => n.trim() && n !== '.');
         currentPerson.text(newName[0] + (newName.length > 1 ? ' ' + newName[newName.length - 1] : ''));
-        console.log('person', currentPerson[0], newName, currentPerson.text());
     }
 
     // get all tables by: $.fn.dataTable.tables()
@@ -411,8 +401,8 @@
 
             // de-emphasise secondary-supervised students
             const deemphasised = studentTableAPI.rows().eq(0).filter(function (rowIdx) {
-                const cellValue = studentTableAPI.cell(rowIdx, 0).data();
-                const valueFiltered = cellValue.toLowerCase().includes('secondary');
+                const cellValue = studentTableAPI.cell(rowIdx, 0).data().toLowerCase();
+                const valueFiltered = /secondary|internal/.test(cellValue);
                 if (valueFiltered) {
                     console.log('eVision fixer: de-emphasising secondary-supervised student: ' +
                         studentTableAPI.cell(rowIdx, 2).data());
@@ -432,7 +422,7 @@
                     console.log('eVision fixer: emphasising PhD student: ' +
                         studentTableAPI.cell(rowIdx, 2).data());
                 }
-                return valueFiltered && !studentTableAPI.cell(rowIdx, 0).data().toLowerCase().includes('secondary');
+                return valueFiltered && !/secondary|internal/.test(studentTableAPI.cell(rowIdx, 0).data().toLowerCase());
             });
             studentTableAPI.rows(isPhD).nodes().to$().addClass('emphasise');
 
@@ -443,7 +433,7 @@
             studentTable.dataTable().fnSort([[0, 'asc']]);
 
             // our updates break (and make obsolete) the page/previous/next buttons - hide them
-            $('#myrs_list_length,#myrs_list_previous,#myrs_list_next').hide();
+            $('#myrs_list_paginate').hide();
         }
 
         // link student numbers on meeting record pages
@@ -494,7 +484,7 @@
                 const rowDueDate = moment(meetingsTableAPI.cell(rowIdx, 4).data(), 'DD/MMM/YYYY').toDate();
                 const today = new Date();
                 if (rowDueDate < today) {
-                    console.log(rowDueDate, 'is expired');
+                    console.log('Meeting on', rowDueDate, 'is overdue');
                     if (outcomeCellValue.includes('pending')) {
                         outcomeCell.data('<span class="sv-label sv-label-danger"><span ' +
                             'class="glyphicon glyphicon-exclamation-sign"></span> Incomplete</span>');
@@ -516,6 +506,9 @@
         // force re-rendering the table to fix an issue with date sorting not working
         meetingsTable.DataTable().rows().invalidate('data').draw(false);
 
+        // our updates break (and make obsolete) the page/previous/next buttons - hide them
+        $('#DataTables_Table_0_paginate').hide();
+
         // slight hack: need a brief delay to allow for table layout to complete
         setTimeout(function () {
             $('a.sv-btn').each(function () {
@@ -525,7 +518,7 @@
             });
 
             const lastFinishedMeeting = $('.deemphasise,.overdue').filter(':last');
-            if (lastFinishedMeeting.length >= 0) {
+            if (lastFinishedMeeting.length > 0) {
                 lastFinishedMeeting[0].scrollIntoView({
                     behavior: 'smooth',
                     inline: 'center',
@@ -641,8 +634,14 @@
         });
     }
 
-    // make ad hoc meeting scheduling a little more usable
+    // skip the pointless re-selection of student after ad hoc meeting initiation
+    const adHocSummaryPanel = $('div.sv-panel-heading:contains("Schedule Adhoc Meeting")').parent();
     const adHocPanel = $('div.sv-panel-heading:contains("Schedule a Meeting for")').parent();
+    if (adHocSummaryPanel.length > 0 && adHocPanel.length <= 0) {
+        $('#add_list').find('button').trigger('click');
+    }
+
+    // make ad hoc meeting scheduling a little more usable
     if (adHocPanel.length > 0) {
         const daySelectors = adHocPanel.find('select[name^="SPLITDATE_D.TTQ.MENSYS."]');
         const monthSelectors = adHocPanel.find('select[name^="SPLITDATE_M.TTQ.MENSYS."]');
@@ -714,7 +713,7 @@
         // hide the unnecessary end date view (we link both fields to show the same date) and initialise the title
         $(yearSelectors.slice(-1)[0]).closest('.sv-form-group').hide();
         $(yearSelectors[0]).closest('.sv-form-group').find('p.sv-checkbox-text').text('Meeting Date');
-        setTimeout(function () {
+        setTimeout(() => {
             const meetingText = adHocPanel.find('input.sv-form-control[id^="ANSWER.TTQ.MENSYS."]');
             if (!meetingText.val()) {
                 meetingText.val(defaultAdhocMeetingName);
@@ -725,7 +724,7 @@
         window.deleteRDE = function (rdekeys) {
             if (confirm('Delete this ad hoc meeting?')) {
                 $('[data-ttqseqn=4]').val(rdekeys);
-                $('[data-ttqseqn=2]').click();
+                $('[data-ttqseqn=2]').trigger('click');
             }
         };
     }
