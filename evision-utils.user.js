@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         e:Vision Utilities
 // @namespace    https://github.com/simonrob/evision-utils
-// @version      2026-04-20
+// @version      2026-09-15
 // @updateURL    https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @downloadURL  https://github.com/simonrob/evision-utils/raw/main/evision-utils.user.js
 // @require      https://gist.githubusercontent.com/raw/51e2fe655d4d602744ca37fa124869bf/GM_addStyle.js
@@ -91,6 +91,41 @@
             position:fixed;
         }
     `);
+
+    // pressing enter on the login page after entering credentials just switches between languages; here we fix that
+    if (window.location.href === 'https://evision.swan.ac.uk/urd/sits.urd/run/siw_lgn') {
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.defaultPrevented) {
+                return;
+            }
+
+            // only check text/password inputs
+            const field = event.target;
+            if (!(field instanceof HTMLInputElement)) {
+                return;
+            }
+            if (!/^(text|password)$/i.test(field.type)) {
+                return;
+            }
+
+            // find the form's submit button button
+            const form = field.form;
+            if (!form) {
+                return;
+            }
+            const loginButton = [...form.querySelectorAll('input')].find(el => {
+                return el.type === 'submit';
+            });
+            if (!loginButton) {
+                return;
+            }
+
+            // suppress default events, and manually click the login button
+            event.preventDefault();
+            event.stopPropagation();
+            loginButton.click();
+        }, true);
+    }
 
     const filteredStudents = []; // an array of student numbers to remove from display (managed via GM_config)
     let profileLinkPrefix = ''; // basic for now, but could be extended if needed
